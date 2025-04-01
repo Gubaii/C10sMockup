@@ -1,4 +1,3 @@
-import requests  # 添加requests库
 from flask import Flask, request, render_template, send_file, jsonify
 from PIL import Image, ImageOps, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 import io
@@ -278,10 +277,10 @@ def apply_texture():
 def default_images():
     """返回默认图片路径"""
     return jsonify({
-        'background': 'https://i.postimg.cc/bNQp0Gk8/bg.jpg',
-        'texture': 'https://i.postimg.cc/SsGcs0tr/texture.jpg',
-        'element': 'https://i.postimg.cc/23M6tfnk/element.png'
+        'background': '/static/images/backgrounds/default_background.jpg',
+        'texture': '/static/images/textures/default_texture.jpg',
+        'element': '/static/images/elements/default_element.png'
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001) 
+    app.run(debug=True, host='0.0.0.0', port=5000) 
