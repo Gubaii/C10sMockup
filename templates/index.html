@@ -236,11 +236,13 @@
         
         // 页面加载时获取默认图片
         window.onload = async function() {
+            console.log("页面加载，开始获取默认图片...");
             // 获取默认图片路径
             try {
                 const response = await fetch('/default_images');
                 if (response.ok) {
                     defaultImages = await response.json();
+                    console.log("成功获取默认图片路径:", defaultImages);
                     
                     // 预加载默认背景图
                     if (defaultImages.background) {
@@ -288,6 +290,7 @@
         
         // 添加默认图片元素
         async function addDefaultElement() {
+            console.log("开始添加默认元素...");
             if (!defaultImages.element) {
                 alert('默认图片元素未找到');
                 return;
@@ -296,9 +299,16 @@
             showLoading();
             try {
                 // 先获取默认元素图片的blob
+                console.log("尝试获取元素图片:", defaultImages.element);
                 const elemBlob = await fetch(defaultImages.element).then(r => {
                     if (!r.ok) throw new Error('获取默认图片失败');
                     return r.blob();
+                }).catch(err => {
+                    console.error("fetch操作失败:", err);
+                    throw err;
+                });
+                
+                console.log("元素图片获取成功，大小:", elemBlob.size);
                 });
                 
                 // 创建File对象
