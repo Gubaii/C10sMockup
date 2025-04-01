@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图像设计工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .tools {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 250px;
+        }
+        .canvas-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-grow: 1;
+        }
+        .tool-section {
+            margin-bottom: 20px;
+        }
+        h2 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .text-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        #canvas {
+            border: 1px solid #ddd;
+        }
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .blend-mode-select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            font-size: 14px;
+        }
+        .blend-mode-select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        .guide {
+            display: none;
+        }
+        .guide-h {
+            display: none;
+        }
+        .guide-v {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tools">
+            <div class="tool-section">
+                <h2>背景图片</h2>
+                <input type="file" id="background-upload" accept="image/*">
+                <button onclick="document.getElementById('background-upload').click()">上传背景图片</button>
+            </div>
+
+            <div class="tool-section">
+                <h2>纹理图片</h2>
+                <input type="file" id="texture-upload" accept="image/*">
+                <button onclick="document.getElementById('texture-upload').click()">上传纹理图片</button>
+                <button onclick="rotateTexture()" id="rotate-texture" disabled>旋转纹理 (90°)</button>
+            </div>
+
+            <div class="tool-section">
+                <h2>添加元素</h2>
+                <input type="file" id="element-upload" accept="image/*">
+                <button onclick="document.getElementById('element-upload').click()">添加图片元素</button>
+                <button onclick="addDefaultElement()">添加默认元素</button>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="invert-option" onchange="reprocessCurrentImage()" checked>
+                    <label for="invert-option">反相</label>
+                </div>
+                <div class="form-group">
+                    <label for="levels-option">灰度等级数量(1-20)</label>
+                    <input type="number" id="levels-option" min="1" max="20" value="10" class="text-input" onchange="reprocessCurrentImage()">
+                </div>
+                <div class="form-group">
+                    <label for="contrast-option">对比度增强(0.5-3.0)</label>
+                    <input type="range" id="contrast-option" min="0.5" max="3.0" step="0.1" value="1.0" class="text-input" oninput="updateContrastValue()" onchange="reprocessCurrentImage()">
+                    <span id="contrast-value">1.0</span>
+                </div>
+                <button onclick="downloadProcessedImage()">下载处理后的PNG</button>
+                <input type="text" class="text-input" id="text-input" placeholder="输入文字">
+                <button onclick="addText()">添加文字</button>
+            </div>
+
+            <div class="tool-section">
+                <h2>操作</h2>
+                <select id="blend-mode" class="blend-mode-select" onchange="updateBlendMode()">
+                    <option value="source-over">正常</option>
+                    <option value="multiply">正片叠底</option>
+                    <option value="screen">滤色</option>
+                    <option value="overlay">叠加</option>
+                    <option value="darken">变暗</option>
+                    <option value="lighten">变亮</option>
+                    <option value="color-burn">颜色加深</option>
+                    <option value="color-dodge">颜色减淡</option>
+                    <option value="hard-light">强光</option>
+                    <option value="soft-light">柔光</option>
+                    <option value="difference">差值</option>
+                    <option value="exclusion">排除</option>
+                    <option value="luminosity">亮度</option>
+                    <option value="color">颜色</option>
+                </select>
+                <button onclick="deleteSelected()">删除选中元素</button>
+                <button onclick="downloadCanvas()">下载设计</button>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">处理中...</div>
+
+    <script>
+        // 初始化 Canvas
+        const canvas = new fabric.Canvas('canvas', {
+            width: 800,
+            height: 600,
+            backgroundColor: '#000000',  // 黑色背景，使元素更易于看见
+            centeredScaling: true,
+            centeredRotation: true
+        });
+
+        // 调整画布容器和画布显示样式
+        const canvasContainer = document.querySelector('.canvas-container');
+        canvasContainer.style.display = 'flex';
+        canvasContainer.style.justifyContent = 'center';
+        canvasContainer.style.alignItems = 'center';
+        canvasContainer.style.height = '600px';  // 确保高度足够
+        
+        // 确保canvas元素本身也正确显示
+        const canvasElement = document.getElementById('canvas');
+        canvasElement.style.margin = '0 auto';
+
+        // 启用文字编辑模式
+        canvas.on('mouse:dblclick', function(options) {
+            if (options.target && options.target.type === 'text') {
+                options.target.enterEditing();
+                options.target.selectAll();
+                canvas.renderAll();
+            }
+        });
+
+        // 文字编辑完成时的处理
+        canvas.on('text:editing:exited', function(e) {
+            canvas.renderAll();
+        });
+
+        // 当前纹理图片
+        let currentTexture = null;
+
+        // 当前处理后的图片URL
+        let currentProcessedImageUrl = null;
+
+        // 当前上传的原始图片文件
+        let currentOriginalFile = null;
+        
+        // 记录原始图片信息
+        let originalImageInfo = null;
+
+        // 当前纹理旋转角度
+        let currentTextureRotation = 0;
+
+        // 默认图片URL
+        let defaultImages = {
+            background: '',
+            texture: '',
+            element: ''
+        };
+        
+        // 页面加载时获取默认图片
+        window.onload = async function() {
+            // 获取默认图片路径
+            try {
+                const response = await fetch('/default_images');
+                if (response.ok) {
+                    defaultImages = await response.json();
+                    
+                    // 预加载默认背景图
+                    if (defaultImages.background) {
+                        const bgImage = new Image();
+                        bgImage.onload = function() {
+                            // 加载背景图到画布
+                            fabric.Image.fromURL(defaultImages.background, function(img) {
+                                // 调整背景图到画布大小
+                                img.scaleToWidth(canvas.width);
+                                img.scaleToHeight(canvas.height);
+                                
+                                img.set({
+                                    originX: 'left',
+                                    originY: 'top',
+                                    selectable: false,
+                                    evented: false
+                                });
+                                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+                                
+                                // 加载完背景图后添加默认元素
+                                if (defaultImages.element) {
+                                    setTimeout(() => {
+                                        addDefaultElement();
+                                    }, 500);
+                                }
+                            });
+                        };
+                        bgImage.src = defaultImages.background;
+                    } else if (defaultImages.element) {
+                        // 如果没有背景但有元素，直接添加元素
+                        setTimeout(() => {
+                            addDefaultElement();
+                        }, 500);
+                    }
+                    
+                    // 设置默认纹理
+                    if (defaultImages.texture) {
+                        currentTexture = defaultImages.texture;
+                    }
+                }
+            } catch (error) {
+                console.error('加载默认图片失败:', error);
+            }
+        };
+        
+        // 添加默认图片元素
+        async function addDefaultElement() {
+            if (!defaultImages.element) {
+                alert('默认图片元素未找到');
+                return;
+            }
+            
+            showLoading();
+            try {
+                // 先获取默认元素图片的blob
+                const elemBlob = await fetch(defaultImages.element).then(r => {
+                    if (!r.ok) throw new Error('获取默认图片失败');
+                    return r.blob();
+                });
+                
+                // 创建File对象
+                const file = new File([elemBlob], 'default_element.png', { type: 'image/png' });
+                currentOriginalFile = file;  // 保存为原始文件
+                
+                // 创建表单数据
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('invert', document.getElementById('invert-option').checked);
+                formData.append('levels', document.getElementById('levels-option').value);
+                formData.append('contrast', document.getElementById('contrast-option').value);
+                
+                // 发送处理请求
+                const response = await fetch('/process_transparent', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('处理失败: ' + response.status);
+                
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                
+                // 保存处理后的图片URL
+                if (currentProcessedImageUrl) {
+                    URL.revokeObjectURL(currentProcessedImageUrl);
+                }
+                currentProcessedImageUrl = url;
+                
+                // 添加到画布
+                fabric.Image.fromURL(url, function(img) {
+                    if (!img) {
+                        throw new Error('加载处理后的图片失败');
+                    }
+                    
+                    // 计算长边为画布尺寸的一半
+                    const canvasHalfWidth = canvas.width / 2;
+                    const canvasHalfHeight = canvas.height / 2;
+                    
+                    // 计算缩放比例，以使长边等于画布对应边的一半
+                    const scaleX = canvasHalfWidth / img.width;
+                    const scaleY = canvasHalfHeight / img.height;
+                    const scale = Math.min(scaleX, scaleY); // 取较小值保持等比缩放
+                    
+                    // 设置图片在画布中心
+                    img.set({
+                        left: canvas.width / 2,
+                        top: canvas.height / 2,
+                        originX: 'center',
+                        originY: 'center',
+                        scaleX: scale,
+                        scaleY: scale,
+                        globalCompositeOperation: document.getElementById('blend-mode').value
+                    });
+                    
+                    canvas.add(img);
+                    canvas.setActiveObject(img);
+                    canvas.renderAll();
+                    
+                    console.log('默认元素已添加:', {
+                        width: img.width,
+                        height: img.height,
+                        left: img.left,
+                        top: img.top,
+                        scale: scale
+                    });
+                    
+                    // 如果有纹理，自动应用
+                    if (currentTexture) {
+                        setTimeout(() => {
+                            applyTextureToObject(img, currentOriginalFile);
+                        }, 100);
+                    }
+                    
+                    hideLoading();
+                }, function(error) {
+                    console.error('创建fabric图像失败:', error);
+                    throw error;
+                });
+                
+            } catch (error) {
+                console.error('添加默认图片元素失败:', error);
+                alert('添加默认图片元素失败: ' + error.message);
+                hideLoading();
+            }
+        }
+
+        // 背景图片上传
+        document.getElementById('background-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fabric.Image.fromURL(e.target.result, function(img) {
+                        // 调整图片大小以适应画布
+                        const scale = Math.min(
+                            canvas.width / img.width,
+                            canvas.height / img.height
+                        );
+                        img.scale(scale);
+                        
+                        // 设置为背景
+                        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                            originX: 'left',
+                            originY: 'top'
+                        });
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 图片元素上传
+        document.getElementById('element-upload').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                currentOriginalFile = file;  // 保存原始文件
+                await processAndDisplayImage(file);
+            }
+        });
+
+        // 处理并显示图片
+        async function processAndDisplayImage(file, replaceExisting = false) {
+            showLoading();
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('invert', document.getElementById('invert-option').checked);
+            formData.append('levels', document.getElementById('levels-option').value);
+            formData.append('contrast', document.getElementById('contrast-option').value);
+            
+            try {
+                const response = await fetch('/process_transparent', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('处理失败');
+                
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                
+                if (currentProcessedImageUrl) {
+                    URL.revokeObjectURL(currentProcessedImageUrl);
+                }
+                currentProcessedImageUrl = url;
+                
+                // 检查是否为替换现有图片还是添加新图片
+                const activeObject = canvas.getActiveObject();
+                if (replaceExisting && activeObject && activeObject.type === 'image') {
+                    // 记录当前图片属性
+                    const originalWidth = activeObject.width * activeObject.scaleX;
+                    const originalHeight = activeObject.height * activeObject.scaleY;
+                    const left = activeObject.left;
+                    const top = activeObject.top;
+                    const angle = activeObject.angle;
+                    const globalCompositeOperation = activeObject.globalCompositeOperation;
+                    
+                    // 替换图片内容，保留位置和大小
+                    fabric.Image.fromURL(url, function(img) {
+                        // 直接设置宽高而不是缩放比例
+                        img.scaleToWidth(originalWidth);
+                        img.scaleToHeight(originalHeight);
+                        
+                        img.set({
+                            left: left,
+                            top: top,
+                            angle: angle,
+                            globalCompositeOperation: globalCompositeOperation
+                        });
+                        
+                        canvas.remove(activeObject);
+                        canvas.add(img);
+                        canvas.setActiveObject(img);
+                        canvas.renderAll();
+                        
+                        // 重新应用纹理
+                        if (currentTexture) {
+                            setTimeout(() => {
+                                applyTextureToObject(img, currentOriginalFile);
+                            }, 100);
+                        }
+                    });
+                } else {
+                    // 创建新图片并添加到画布
+                    fabric.Image.fromURL(url, function(img) {
+                        // 计算长边为画布尺寸的一半
+                        const canvasHalfWidth = canvas.width / 2;
+                        const canvasHalfHeight = canvas.height / 2;
+                        
+                        // 计算缩放比例，以使长边等于画布对应边的一半
+                        const scaleX = canvasHalfWidth / img.width;
+                        const scaleY = canvasHalfHeight / img.height;
+                        const scale = Math.min(scaleX, scaleY); // 取较小值保持等比缩放
+                        
+                        img.set({
+                            left: canvas.width / 2,  // 放置在画布中心
+                            top: canvas.height / 2,
+                            originX: 'center',
+                            originY: 'center',
+                            scaleX: scale,
+                            scaleY: scale,
+                            globalCompositeOperation: document.getElementById('blend-mode').value
+                        });
+                        
+                        canvas.add(img);
+                        canvas.setActiveObject(img);
+                        canvas.renderAll();
+                        
+                        // 重新应用纹理
+                        if (currentTexture) {
+                            setTimeout(() => {
+                                applyTextureToObject(img, currentOriginalFile);
+                            }, 100);
+                        }
+                    });
+                }
+            } catch (error) {
+                alert('图片处理失败');
+                console.error(error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 应用纹理到单个对象
+        async function applyTextureToObject(obj, originalFile) {
+            if (!currentTexture) return;
+            
+            // 保存原始尺寸和属性，确保在整个过程中保持一致
+            const originalWidth = obj.width * obj.scaleX;
+            const originalHeight = obj.height * obj.scaleY;
+            const left = obj.left;
+            const top = obj.top;
+            const angle = obj.angle;
+            const globalCompositeOperation = obj.globalCompositeOperation;
+            
+            try {
+                showLoading(); // 显示加载提示
+                
+                let objectData = {
+                    type: obj.type,
+                    width: Math.round(originalWidth),
+                    height: Math.round(originalHeight)
+                };
+                
+                const formData = new FormData();
+                if (obj.type === 'image' && originalFile) {
+                    formData.append('image', originalFile);
+                    formData.append('invert', document.getElementById('invert-option').checked);
+                    formData.append('levels', document.getElementById('levels-option').value);
+                    formData.append('contrast', document.getElementById('contrast-option').value);
+                }
+                
+                formData.append('texture', await fetch(currentTexture).then(r => r.blob()));
+                formData.append('object_data', JSON.stringify(objectData));
+                
+                const response = await fetch('/apply_texture', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('处理失败');
+                
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                
+                await new Promise((resolve) => {
+                    fabric.Image.fromURL(url, function(img) {
+                        // 直接设置宽高而不是计算缩放比例，避免舍入误差
+                        img.scaleToWidth(originalWidth);
+                        img.scaleToHeight(originalHeight);
+                        
+                        img.set({
+                            left: left,
+                            top: top,
+                            angle: angle,
+                            selectable: true,
+                            hasControls: true,
+                            globalCompositeOperation: globalCompositeOperation
+                        });
+                        
+                        // 确保完全删除旧对象
+                        if (canvas.contains(obj)) {
+                            canvas.remove(obj);
+                        }
+                        
+                        canvas.add(img);
+                        canvas.setActiveObject(img);
+                        URL.revokeObjectURL(url);
+                        resolve();
+                    });
+                });
+                
+                canvas.renderAll();
+            } catch (error) {
+                console.error('纹理应用失败:', error);
+                alert('纹理应用失败: ' + error.message);
+            } finally {
+                hideLoading(); // 隐藏加载提示
+            }
+        }
+
+        // 重新处理当前图片
+        async function reprocessCurrentImage() {
+            if (currentOriginalFile) {
+                const activeObject = canvas.getActiveObject();
+                if (activeObject && activeObject.type === 'image') {
+                    await processAndDisplayImage(currentOriginalFile, true);
+                } else {
+                    await processAndDisplayImage(currentOriginalFile, false);
+                }
+            }
+        }
+
+        // 添加文字
+        async function addText() {
+            const text = document.getElementById('text-input').value;
+            if (text) {
+                const textObj = new fabric.IText(text, {
+                    left: 100,
+                    top: 100,
+                    fontSize: 80,
+                    fill: '#000000',
+                    fontFamily: 'Arial',
+                    editable: true,
+                    globalCompositeOperation: document.getElementById('blend-mode').value
+                });
+                canvas.add(textObj);
+                canvas.setActiveObject(textObj);
+
+                // 如果有纹理，自动应用
+                if (currentTexture) {
+                    const img = await new Promise((resolve) => {
+                        fabric.Image.fromURL(currentTexture, (img) => {
+                            resolve(img);
+                        });
+                    });
+
+                    const pattern = await createTexturePattern(img);
+                    textObj.set({
+                        fill: pattern,
+                        stroke: null
+                    });
+                }
+
+                canvas.renderAll();
+            }
+        }
+
+        // 纹理图片上传
+        document.getElementById('texture-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentTexture = e.target.result;
+                    currentTextureRotation = 0; // 重置旋转角度
+                    document.getElementById('rotate-texture').disabled = false; // 启用旋转按钮
+                    // 如果已经有元素在画布上，询问是否应用纹理
+                    const objects = canvas.getObjects();
+                    if (objects.length > 0) {
+                        if (confirm('是否将纹理应用到所有现有元素？')) {
+                            applyTextureToSelected();
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 应用纹理到选中元素
+        async function applyTextureToSelected() {
+            if (!currentTexture) {
+                alert('请先上传纹理图片');
+                return;
+            }
+
+            const objects = canvas.getObjects();
+            if (objects.length === 0) {
+                alert('画布上没有任何元素');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                // 处理每个对象
+                for (const obj of objects) {
+                    if (obj.type === 'i-text') {
+                        const img = await new Promise((resolve) => {
+                            fabric.Image.fromURL(currentTexture, (img) => {
+                                resolve(img);
+                            });
+                        });
+
+                        const pattern = await createTexturePattern(img);
+                        obj.set({
+                            fill: pattern,
+                            stroke: null,
+                            globalCompositeOperation: document.getElementById('blend-mode').value
+                        });
+                    } else if (obj.type === 'image') {
+                        await applyTextureToObject(obj, currentOriginalFile);
+                    }
+                }
+                
+                canvas.renderAll();
+            } catch (error) {
+                alert('纹理应用失败');
+                console.error(error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 删除选中元素
+        function deleteSelected() {
+            const activeObject = canvas.getActiveObject();
+            if (activeObject) {
+                canvas.remove(activeObject);
+                canvas.renderAll();
+            }
+        }
+
+        // 下载画布
+        function downloadCanvas() {
+            const dataURL = canvas.toDataURL({
+                format: 'png',
+                quality: 1
+            });
+            const link = document.createElement('a');
+            link.download = 'design.png';
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 下载处理后的PNG图片
+        function downloadProcessedImage() {
+            if (!currentProcessedImageUrl) {
+                alert('请先上传并处理图片');
+                return;
+            }
+            
+            const link = document.createElement('a');
+            link.href = currentProcessedImageUrl;
+            link.download = 'processed_transparent.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 加载提示
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // 更新混合模式
+        function updateBlendMode() {
+            const blendMode = document.getElementById('blend-mode').value;
+            canvas.getObjects().forEach(obj => {
+                if (obj.type === 'i-text') {
+                    // 对于文字对象，先清除之前的填充
+                    if (obj._pattern) {
+                        obj.set('fill', '#000000');
+                    }
+                }
+                obj.set('globalCompositeOperation', blendMode);
+            });
+            canvas.renderAll();
+        }
+
+        // 选中对象时更新混合模式下拉框
+        canvas.on('selection:created', function(options) {
+            const blendMode = document.getElementById('blend-mode').value;
+            options.selected.forEach(obj => {
+                obj.set('globalCompositeOperation', blendMode);
+            });
+            canvas.renderAll();
+        });
+
+        // 添加键盘快捷键支持
+        document.addEventListener('keydown', function(e) {
+            // 删除选中元素 - Delete键
+            if (e.key === 'Delete') {
+                deleteSelected();
+                e.preventDefault(); // 防止浏览器的默认行为
+            }
+        });
+
+        // 添加对象时设置当前混合模式
+        canvas.on('object:added', function(options) {
+            const blendMode = document.getElementById('blend-mode').value;
+            const obj = options.target;
+            if (obj.type === 'i-text') {
+                // 对于文字对象，确保有默认填充色
+                if (!obj.fill) {
+                    obj.set('fill', '#000000');
+                }
+            }
+            obj.set('globalCompositeOperation', blendMode);
+            canvas.renderAll();
+        });
+
+        // 删除所有对齐和吸附相关的代码
+        canvas.on('object:moving', function(e) {
+            canvas.renderAll();
+        });
+
+        canvas.on('object:moved', function() {
+            canvas.renderAll();
+        });
+
+        canvas.on('selection:cleared', function() {
+            canvas.renderAll();
+        });
+
+        // 旋转纹理
+        async function rotateTexture() {
+            if (!currentTexture) return;
+
+            currentTextureRotation = (currentTextureRotation + 90) % 360;
+            
+            // 创建临时 canvas 来旋转纹理图片
+            const img = await new Promise((resolve) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.src = currentTexture;
+            });
+
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // 根据旋转角度设置画布大小
+            if (currentTextureRotation % 180 === 0) {
+                tempCanvas.width = img.width;
+                tempCanvas.height = img.height;
+            } else {
+                tempCanvas.width = img.height;
+                tempCanvas.height = img.width;
+            }
+
+            // 在临时画布上绘制旋转后的图像
+            tempCtx.save();
+            tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+            tempCtx.rotate((currentTextureRotation * Math.PI) / 180);
+            tempCtx.drawImage(img, -img.width / 2, -img.height / 2);
+            tempCtx.restore();
+
+            // 更新当前纹理
+            currentTexture = tempCanvas.toDataURL();
+
+            // 重新应用纹理到所有对象
+            const objects = canvas.getObjects();
+            if (objects.length > 0) {
+                await applyTextureToSelected();
+            }
+        }
+
+        // 修改 Pattern 创建方式
+        async function createTexturePattern(img) {
+            return new fabric.Pattern({
+                source: img.getElement(),
+                repeat: 'repeat'
+            });
+        }
+
+        // 更新对比度显示值
+        function updateContrastValue() {
+            const contrastValue = document.getElementById('contrast-option').value;
+            document.getElementById('contrast-value').textContent = contrastValue;
+        }
+    </script>
+</body>
+</html> 
