@@ -277,9 +277,9 @@ def apply_texture():
 def default_images():
     """返回默认图片路径"""
     return jsonify({
-        'background': '/static/images/backgrounds/default_background.jpg',
-        'texture': '/static/images/textures/default_texture.jpg',
-        'element': '/static/images/elements/default_element.png'
+        'background': '/static/images/default_background.jpg',
+        'texture': '/static/images/default_texture.jpg',
+        'element': '/static/images/default_element.png'
     })
 
 if __name__ == '__main__':
