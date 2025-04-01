@@ -277,9 +277,9 @@ def apply_texture():
 def default_images():
     """返回默认图片路径"""
     return jsonify({
-        'background': 'https://i.imgur.com/dZiq5zz.jpg?raw=1',
-        'texture': 'https://i.imgur.com/q4k2sZw.jpg?raw=1',
-        'element': 'https://i.imgur.com/L8ObmW8.png?raw=1'
+        'background': 'https://i.postimg.cc/bNQp0Gk8/bg.jpg',
+        'texture': 'https://i.postimg.cc/SsGcs0tr/texture.jpg',
+        'element': 'https://i.postimg.cc/23M6tfnk/element.png'
     })
 
 if __name__ == '__main__':
