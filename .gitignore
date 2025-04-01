@@ -5,3 +5,12 @@ static/images/elements/help.txt
 static/images/help.txt
 static/images/textures/help.txt
 tmp_images/
+# 临时文件
+*.bak
+*.backup
+*.old
+*.new
+*.pre
+defaultImages.txt
+temp_repo/
+tmp_images/
