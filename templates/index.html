@@ -229,26 +229,23 @@
 
         // 默认图片URL
         let defaultImages = {
-            background: '',
-            texture: '',
-            element: ''
+            background: '/static/images/default_background.jpg',
+            texture: '/static/images/default_texture.jpg',
+            element: '/static/images/default_element.png'
         };
         
         // 页面加载时获取默认图片
         window.onload = async function() {
-            console.log("页面加载中...");
             // 获取默认图片路径
             try {
                 const response = await fetch('/default_images');
                 if (response.ok) {
                     defaultImages = await response.json();
-                    console.log("成功获取默认图片:", defaultImages);
                     
                     // 预加载默认背景图
                     if (defaultImages.background) {
                         const bgImage = new Image();
                         bgImage.onload = function() {
-                            console.log("背景图片加载成功");
                             // 加载背景图到画布
                             fabric.Image.fromURL(defaultImages.background, function(img) {
                                 // 调整背景图到画布大小
@@ -271,9 +268,6 @@
                                 }
                             });
                         };
-                        bgImage.onerror = function() {
-                            console.error("背景图片加载失败:", defaultImages.background);
-                        };
                         bgImage.src = defaultImages.background;
                     } else if (defaultImages.element) {
                         // 如果没有背景但有元素，直接添加元素
@@ -288,23 +282,13 @@
                     }
                 }
             } catch (error) {
-                console.error("添加默认元素失败:", error);
-                defaultImages = {
-                    background: "/static/images/default_background.jpg",
-                    texture: "/static/images/default_texture.jpg",
-                    element: "/static/images/default_element.png"
-                };
-                console.log("使用硬编码的默认图片路径:", defaultImages);
-                
                 console.error('加载默认图片失败:', error);
             }
         };
         
         // 添加默认图片元素
         async function addDefaultElement() {
-            console.log("开始添加默认元素，元素路径:", defaultImages.element);
             if (!defaultImages.element) {
-                console.error("默认图片元素路径不存在");
                 alert('默认图片元素未找到');
                 return;
             }
@@ -312,14 +296,9 @@
             showLoading();
             try {
                 // 先获取默认元素图片的blob
-                console.log("开始获取元素图片...");
                 const elemBlob = await fetch(defaultImages.element).then(r => {
-                    console.log("获取元素图片响应状态:", r.status);
                     if (!r.ok) throw new Error('获取默认图片失败');
                     return r.blob();
-                });
-                
-                console.log("元素图片获取成功，大小:", elemBlob.size, "字节");
                 });
                 
                 // 创建File对象
@@ -402,14 +381,6 @@
                 });
                 
             } catch (error) {
-                console.error("添加默认元素失败:", error);
-                defaultImages = {
-                    background: "/static/images/default_background.jpg",
-                    texture: "/static/images/default_texture.jpg",
-                    element: "/static/images/default_element.png"
-                };
-                console.log("使用硬编码的默认图片路径:", defaultImages);
-                
                 console.error('添加默认图片元素失败:', error);
                 alert('添加默认图片元素失败: ' + error.message);
                 hideLoading();
@@ -546,14 +517,6 @@
                     });
                 }
             } catch (error) {
-                console.error("添加默认元素失败:", error);
-                defaultImages = {
-                    background: "/static/images/default_background.jpg",
-                    texture: "/static/images/default_texture.jpg",
-                    element: "/static/images/default_element.png"
-                };
-                console.log("使用硬编码的默认图片路径:", defaultImages);
-                
                 alert('图片处理失败');
                 console.error(error);
             } finally {
@@ -632,14 +595,6 @@
                 
                 canvas.renderAll();
             } catch (error) {
-                console.error("添加默认元素失败:", error);
-                defaultImages = {
-                    background: "/static/images/default_background.jpg",
-                    texture: "/static/images/default_texture.jpg",
-                    element: "/static/images/default_element.png"
-                };
-                console.log("使用硬编码的默认图片路径:", defaultImages);
-                
                 console.error('纹理应用失败:', error);
                 alert('纹理应用失败: ' + error.message);
             } finally {
@@ -753,14 +708,6 @@
                 
                 canvas.renderAll();
             } catch (error) {
-                console.error("添加默认元素失败:", error);
-                defaultImages = {
-                    background: "/static/images/default_background.jpg",
-                    texture: "/static/images/default_texture.jpg",
-                    element: "/static/images/default_element.png"
-                };
-                console.log("使用硬编码的默认图片路径:", defaultImages);
-                
                 alert('纹理应用失败');
                 console.error(error);
             } finally {
